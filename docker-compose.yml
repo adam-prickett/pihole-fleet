@@ -1,7 +1,7 @@
 # Pi-hole Fleet Dashboard
 #
 # Works as-is as a Portainer stack (Stacks -> Add stack -> Web editor) or with `docker compose up -d`;
-# no other files or variables are needed.
+# no other files or variables are needed. Optional settings are listed under `environment:`.
 #
 # Open http://<this host>:3030 and add your Pi-holes from the settings (gear icon). A dashboard
 # password and allowed hosts are optional and can also be set there. Everything is saved in
@@ -15,16 +15,18 @@ services:
     init: true
     ports:
       - "${DASHBOARD_PORT:-3030}:3030"
-    # Optional overrides. Any setting given here is fixed: the settings page shows it as locked.
-    # environment:
-    #   DASHBOARD_PASSWORD: change-me-to-something-long
-    #   ALLOWED_HOSTS: dashboard.lan,10.1.68.0/24
-    #   TRUST_PROXY: "1"
-    #   POLL_INTERVAL_MS: "5000"
-    #   READ_ONLY: "false"
-    #   SESSION_HOURS: "12"
-    #   MAX_STREAMS: "50"
-    #   RESET_PASSWORD: "true"   # forgot the password? set, restart (it's cleared), then remove
+    # Optional overrides, all empty by default. Set them in Portainer's "Environment variables"
+    # section (or a .env file next to this one). Any setting given a value is fixed: the settings
+    # page shows it as locked. Left empty, it's managed from the settings page.
+    environment:
+      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD:-}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-}         # e.g. dashboard.lan,10.1.68.0/24
+      TRUST_PROXY: ${TRUST_PROXY:-}             # e.g. 1, or 172.16.0.0/12
+      POLL_INTERVAL_MS: ${POLL_INTERVAL_MS:-}
+      READ_ONLY: ${READ_ONLY:-}
+      SESSION_HOURS: ${SESSION_HOURS:-}
+      MAX_STREAMS: ${MAX_STREAMS:-}
+      RESET_PASSWORD: ${RESET_PASSWORD:-}       # forgot the password? true, redeploy, then clear
     volumes:
       # Settings, the dashboard password hash and Pi-hole instances (with their passwords).
       - pihole-fleet-data:/data

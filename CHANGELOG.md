@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2026-10-18
+
+### Fixed
+
+- **Environment overrides were ignored in Portainer.** Values set in a stack's
+  "Environment variables" (for example `ALLOWED_HOSTS`) never reached the
+  container, because the compose file's `environment:` entries were commented
+  out. The compose file now passes every setting through, empty by default,
+  and empty values are treated as unset.
+
 ## [0.2.0] - 2026-10-18
 
 The dashboard is now configured from the browser instead of from files, so it
@@ -104,5 +114,6 @@ First release.
   publishes amd64/arm64/armv7 images to GHCR with an SBOM and provenance
   attestation, plus Dependabot updates.
 
+[0.2.1]: https://github.com/adam-prickett/pihole-fleet/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/adam-prickett/pihole-fleet/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/adam-prickett/pihole-fleet/releases/tag/v0.1.0

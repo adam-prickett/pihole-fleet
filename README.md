@@ -144,8 +144,10 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
   so they survive redeploys and image updates. Removing the volume (`docker compose down -v`, or
   deleting it in Portainer) resets everything.
 - `DASHBOARD_PORT` changes the host port (default `3030`). `DASHBOARD_IMAGE` pins a release,
-  e.g. `ghcr.io/adam-prickett/pihole-fleet:0.2.0`.
-- To fix any setting with an environment variable, uncomment it under `environment:` in the compose file.
+  e.g. `ghcr.io/adam-prickett/pihole-fleet:0.2.1`.
+- To fix any setting with an environment variable, add it to the stack's **Environment variables** in
+  Portainer (or a `.env` file), e.g. `ALLOWED_HOSTS=dashboard.lan,10.1.68.0/24`. The compose file
+  passes every setting listed under `environment:` through to the container; empty ones are ignored.
 - A Pi-hole running on the same Docker host is reachable as `http://host.docker.internal`.
   Pi-holes on your LAN are reached by their normal IP or hostname.
 - The container runs as a non-root user with a read-only filesystem, no Linux
