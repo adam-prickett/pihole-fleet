@@ -131,6 +131,7 @@ export interface Snapshot {
   pollIntervalMs: number;
   instances: InstanceState[];
   events: DashboardEvent[];
+  sync: SyncSummary | null;
 }
 
 /** Connection settings for one Pi-hole. */
@@ -196,4 +197,75 @@ export interface SettingsResponse {
 export interface SessionStatus {
   authRequired: boolean;
   authenticated: boolean;
+}
+
+// --- Config sync: one primary Pi-hole, the others mirror it.
+
+/** What can be mirrored from the primary. */
+export type SyncItem =
+  'adlists' | 'domains' | 'clients' | 'localDns' | 'dnsSettings';
+
+export interface SyncSettings {
+  /** The instance others mirror; null = sync off. */
+  primaryId: string | null;
+  /** Instances that don't mirror the primary. */
+  excluded: string[];
+  items: Record<SyncItem, boolean>;
+  /** Sync automatically every `intervalMin` minutes (otherwise only on demand). */
+  auto: boolean;
+  intervalMin: number;
+  /** Update gravity on a replica after its adlists change. */
+  runGravity: boolean;
+}
+
+export type ReplicaSyncState =
+  'unknown' | 'in_sync' | 'drift' | 'syncing' | 'error';
+
+/** Gravity database tables compared between the primary and a replica. */
+export type GravityTable = 'groups' | 'adlists' | 'domains' | 'clients';
+
+export interface TableDiff {
+  added: number;
+  removed: number;
+  changed: number;
+}
+
+/** How a replica differs from the primary. */
+export interface SyncDiff {
+  /** Changed config keys, e.g. "dns.upstreams". */
+  config: string[];
+  gravity: Partial<Record<GravityTable, TableDiff>>;
+}
+
+export interface ReplicaStatus {
+  id: string;
+  state: ReplicaSyncState;
+  checkedAt: number | null;
+  syncedAt: number | null;
+  error: string | null;
+  drift: SyncDiff | null;
+  /** Keys that differ but are fixed by an environment variable on the replica. */
+  skipped: string[];
+}
+
+export interface SyncStatus {
+  running: 'check' | 'sync' | null;
+  lastRun: number | null;
+  nextRun: number | null;
+  primaryError: string | null;
+  replicas: ReplicaStatus[];
+}
+
+export interface SyncResponse {
+  settings: SyncSettings;
+  status: SyncStatus;
+  canEdit: boolean;
+  reason: string | null;
+}
+
+/** The part of the sync state the dashboard shows (in the live snapshot). */
+export interface SyncSummary {
+  primaryId: string;
+  running: SyncStatus['running'];
+  replicas: Record<string, ReplicaSyncState>;
 }

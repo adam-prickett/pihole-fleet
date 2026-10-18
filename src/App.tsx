@@ -359,6 +359,7 @@ function Dashboard({onLogout, theme: {theme, cycle}}: DashboardProps) {
             onSelect={toggleSelect}
             colorOf={colorOf}
             readOnly={data.readOnly}
+            sync={data.sync ?? null}
             now={now}
           />
           <HistoryChart

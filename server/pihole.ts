@@ -20,7 +20,7 @@ export class PiholeError extends Error {
 
 /** Pi-hole API error body. */
 interface ApiError {
-  error?: {message?: string};
+  error?: {message?: string; hint?: string | null};
 }
 
 interface AuthResponse extends ApiError {
@@ -29,8 +29,15 @@ interface AuthResponse extends ApiError {
 
 interface RequestOptions {
   method?: string;
+  /** JSON body. */
   body?: unknown;
+  /** Multipart body (sent instead of `body`). */
+  form?: FormData;
   auth?: boolean;
+  /** Return the raw bytes instead of parsing JSON. */
+  binary?: boolean;
+  /** Overrides the instance's timeout (for slow calls like backups and gravity). */
+  timeoutMs?: number;
 }
 
 interface RawResponse {
@@ -38,8 +45,17 @@ interface RawResponse {
   data: unknown;
 }
 
+const APP_SUDO_MESSAGE =
+  'This app password may not change settings: on that Pi-hole enable webserver.api.app_sudo (Settings → All settings → Webserver and API), or use its admin password';
+
 function errorMessage(data: unknown): string | undefined {
-  return (data as ApiError | null)?.error?.message;
+  const err = (data as ApiError | null)?.error;
+  if (!err?.message) return undefined;
+  if (err.hint?.includes('app_sudo')) return APP_SUDO_MESSAGE;
+  // FTL puts the offending config key in the hint.
+  return err.hint && err.hint.length < 120
+    ? `${err.message} (${err.hint})`
+    : err.message;
 }
 
 /** Friendly message for a failed fetch (the detail goes to the server log). */
@@ -92,10 +108,21 @@ export class PiholeClient {
 
   private async raw(
     path: string,
-    {method = 'GET', body, auth = true}: RequestOptions = {},
+    {
+      method = 'GET',
+      body,
+      form,
+      auth = true,
+      binary = false,
+      timeoutMs = this.timeoutMs,
+    }: RequestOptions = {},
   ): Promise<RawResponse> {
-    const headers: Record<string, string> = {Accept: 'application/json'};
-    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    const headers: Record<string, string> = {
+      Accept: binary ? '*/*' : 'application/json',
+    };
+    if (body !== undefined && !form) {
+      headers['Content-Type'] = 'application/json';
+    }
     if (auth && this.sid) headers['X-FTL-SID'] = this.sid;
 
     let res;
@@ -103,9 +130,9 @@ export class PiholeClient {
       res = await fetch(`${this.base}/api${path}`, {
         method,
         headers,
-        body: body !== undefined ? JSON.stringify(body) : undefined,
+        body: form ?? (body !== undefined ? JSON.stringify(body) : undefined),
         dispatcher: this.dispatcher,
-        signal: AbortSignal.timeout(this.timeoutMs),
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (e) {
       const err = e as Error & {cause?: {code?: string; message?: string}};
@@ -119,6 +146,9 @@ export class PiholeClient {
       throw new PiholeError(msg, {code: 'network'});
     }
 
+    if (binary && res.ok) {
+      return {status: res.status, data: Buffer.from(await res.arrayBuffer())};
+    }
     let data: unknown = null;
     const text = await res.text();
     if (text) {

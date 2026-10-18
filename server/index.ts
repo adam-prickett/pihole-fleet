@@ -12,6 +12,7 @@ import {
 import {PiholeClient, PiholeError} from './pihole.js';
 import {InstancePoller} from './poller.js';
 import {InstanceStore} from './store.js';
+import {SyncManager, validateSync} from './sync.js';
 import {
   checkNewPassword,
   hashPassword,
@@ -270,6 +271,7 @@ function snapshot(): Snapshot {
     pollIntervalMs: config.pollIntervalMs,
     instances: [...pollers.values()].map(p => p.state),
     events: events.slice(0, 50),
+    sync: sync.summary(),
   };
 }
 
@@ -292,6 +294,18 @@ function broadcast(): void {
 for (const inst of config.instances) defs.set(inst.id, inst);
 for (const inst of store.load(new Set(defs.keys()))) defs.set(inst.id, inst);
 for (const inst of defs.values()) startPoller(inst);
+
+// Config sync: replicas mirror a primary (settings in sync.json in the data directory).
+const sync = new SyncManager({
+  dataDir: config.dataDir,
+  client: id => pollers.get(id)?.client,
+  instance: id => defs.get(id),
+  instanceIds: () => [...defs.keys()],
+  record,
+  audit,
+  changed: broadcast,
+  refresh: id => pollers.get(id)?.refreshNow({force: true}),
+});
 
 // ---------------------------------------------------------------------------
 // HTTP app
@@ -857,6 +871,7 @@ app.put('/api/instances/:id', manageLimit, requireManage, (req, res) => {
 
   defs.set(inst.id, inst);
   startPoller(inst);
+  sync.instanceChanged(inst.id, false);
   record(inst, 'good', `Settings changed by ${clientIp(req)}`);
   auditInstance('instance_update', inst, req);
   broadcast();
@@ -873,6 +888,7 @@ app.delete('/api/instances/:id', manageLimit, requireManage, (req, res) => {
 
   defs.delete(existing.id);
   removePoller(existing.id);
+  sync.instanceChanged(existing.id, true);
   record(existing, 'warning', `Removed by ${clientIp(req)}`);
   auditInstance('instance_remove', existing, req);
   broadcast();
@@ -918,6 +934,49 @@ app.post(
     res.json(result);
   },
 );
+
+// --- Config sync (settings page)
+app.get('/api/sync', (_req, res) => {
+  res.json(sync.response(manageBlocked()));
+});
+
+app.put('/api/sync', manageLimit, requireManage, (req, res) => {
+  try {
+    const patch = validateSync(req.body, new Set(defs.keys()));
+    sync.update(patch);
+    audit({action: 'sync_settings_update', changed: patch, ip: clientIp(req)});
+  } catch (err) {
+    if (err instanceof ConfigError) {
+      sendConfigError(res, err);
+      return;
+    }
+    console.error('Could not save sync settings:', errorText(err));
+    saveFailed(res);
+    return;
+  }
+  res.json(sync.response(manageBlocked()));
+});
+
+// Start a check (compare only) or a sync in the background; progress shows in GET /api/sync.
+for (const mode of ['check', 'run'] as const) {
+  app.post(
+    `/api/sync/${mode}`,
+    rateLimit({windowMs: 60_000, max: 10}),
+    requireManage,
+    (_req, res) => {
+      if (!sync.settings.primaryId) {
+        res.status(400).json({error: 'Choose a primary instance first'});
+        return;
+      }
+      if (sync.isRunning()) {
+        res.status(409).json({error: 'A sync is already running'});
+        return;
+      }
+      void sync.run(mode === 'run' ? 'sync' : 'check', 'manual');
+      res.status(202).json(sync.response(manageBlocked()));
+    },
+  );
+}
 
 app.use('/api', (_req, res) => {
   res.status(404).json({error: 'Not found'});
@@ -993,8 +1052,15 @@ const server = app.listen(config.port, config.host, () => {
       '(No dist/ build found — use `npm run dev` for the UI on :5173)',
     );
   }
+  if (sync.settings.primaryId) {
+    const primary = defs.get(sync.settings.primaryId);
+    console.log(
+      `Config sync: replicas mirror ${primary?.name ?? sync.settings.primaryId}${sync.settings.auto ? ` every ${sync.settings.intervalMin} min` : ' (on demand)'}`,
+    );
+  }
   started = true;
   for (const p of pollers.values()) p.start();
+  sync.start();
 });
 
 // Log out of every Pi-hole on shutdown so we don't hold API session slots.
@@ -1002,6 +1068,7 @@ let shuttingDown = false;
 async function shutdown(): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
+  sync.stop();
   for (const res of clients.keys()) res.end();
   server.close();
   await Promise.race([

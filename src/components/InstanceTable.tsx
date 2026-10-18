@@ -2,6 +2,8 @@ import type {
   Heartbeat as Beat,
   InstanceState,
   InstanceStatus,
+  ReplicaSyncState,
+  SyncSummary,
 } from '../../server/types.js';
 import {fmtAgo, fmtCompact, fmtDuration, fmtMs, hostOf} from '../lib/format.js';
 import {BlockingControl} from './BlockingControl.js';
@@ -14,6 +16,40 @@ const STATUS: Record<InstanceStatus, {label: string; cls: Status}> = {
   auth_error: {label: 'Auth', cls: 'serious'},
   connecting: {label: 'Pending', cls: 'unknown'},
 };
+
+const SYNC_TAG: Record<ReplicaSyncState, {cls: string; label: string}> = {
+  in_sync: {cls: 'tag-ok', label: 'IN SYNC'},
+  drift: {cls: 'tag-warning', label: 'DIFFERS'},
+  syncing: {cls: 'tag-neutral', label: 'SYNCING'},
+  error: {cls: 'tag-blocked', label: 'SYNC ERROR'},
+  unknown: {cls: 'tag-neutral', label: 'REPLICA'},
+};
+
+/** PRIMARY, or a replica's sync state. */
+function SyncTag({id, sync}: {id: string; sync: SyncSummary | null}) {
+  if (!sync) return null;
+  if (sync.primaryId === id) {
+    return (
+      <span
+        className="tag tag-neutral tag-role"
+        title="Other Pi-holes mirror this one"
+      >
+        PRIMARY
+      </span>
+    );
+  }
+  const state = sync.replicas[id];
+  if (!state) return null;
+  const t = SYNC_TAG[state];
+  return (
+    <span
+      className={`tag ${t.cls} tag-role`}
+      title="Mirrors the primary (see Settings → Sync)"
+    >
+      {t.label}
+    </span>
+  );
+}
 
 function level(pct: number): string {
   if (pct >= 90) return 'critical';
@@ -86,6 +122,7 @@ interface InstanceTableProps {
   onSelect: (id: string, additive: boolean) => void;
   colorOf: (id: string) => string;
   readOnly: boolean;
+  sync: SyncSummary | null;
   now: number;
 }
 
@@ -95,6 +132,7 @@ export function InstanceTable({
   onSelect,
   colorOf,
   readOnly,
+  sync,
   now,
 }: InstanceTableProps) {
   const up = instances.filter(i => i.status === 'online').length;
@@ -164,6 +202,7 @@ export function InstanceTable({
                         aria-hidden="true"
                       />
                       <span>{inst.name}</span>
+                      <SyncTag id={inst.id} sync={sync} />
                     </div>
                     <a
                       className="inst-host"

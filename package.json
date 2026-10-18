@@ -1,6 +1,6 @@
 {
   "name": "pihole-dashboard",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Live, unified dashboard for multiple Pi-hole instances",
   "private": true,
   "type": "module",

@@ -32,6 +32,51 @@ interface BlockingBody {
 
 type Route = (url: URL, body: BlockingBody) => unknown;
 
+interface MockGroup {
+  id: number;
+  name: string;
+  enabled: boolean;
+  comment: string | null;
+}
+
+interface MockList {
+  id: number;
+  address: string;
+  type: 'block' | 'allow';
+  enabled: boolean;
+  comment: string | null;
+  groups: number[];
+}
+
+interface MockDomain {
+  id: number;
+  domain: string;
+  type: 'allow' | 'deny';
+  kind: 'exact' | 'regex';
+  enabled: boolean;
+  comment: string | null;
+  groups: number[];
+}
+
+interface MockClient {
+  id: number;
+  client: string;
+  comment: string | null;
+  groups: number[];
+}
+
+/** The gravity tables and DNS config a teleporter backup carries (the mock's "zip"). */
+interface MockGravity {
+  groups: MockGroup[];
+  lists: MockList[];
+  domains: MockDomain[];
+  clients: MockClient[];
+}
+
+interface MockImport {
+  gravity?: Partial<Record<string, boolean>>;
+}
+
 const DOMAINS = [
   'www.google.com',
   'api.github.com',
@@ -115,8 +160,116 @@ function now(): number {
   return Date.now() / 1000;
 }
 
+/** Starting lists and DNS settings; the second Pi-hole starts out of step for the sync demo. */
+function initialGravity(sim: Sim): MockGravity {
+  const lagging = sim.port === 8082;
+  const lists: MockList[] = [
+    {
+      id: 1,
+      address:
+        'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts',
+      type: 'block',
+      enabled: true,
+      comment: 'Default',
+      groups: [0],
+    },
+  ];
+  if (!lagging) {
+    lists.push({
+      id: 2,
+      address: 'https://big.oisd.nl',
+      type: 'block',
+      enabled: true,
+      comment: null,
+      groups: [0, 1],
+    });
+  }
+  return {
+    groups: [
+      {id: 0, name: 'Default', enabled: true, comment: 'The default group'},
+      {id: 1, name: 'Kids', enabled: true, comment: null},
+    ],
+    lists,
+    domains: [
+      {
+        id: 1,
+        domain: 'tracking.example.com',
+        type: 'deny',
+        kind: 'exact',
+        enabled: true,
+        comment: null,
+        groups: [0],
+      },
+      ...(lagging
+        ? []
+        : [
+            {
+              id: 2,
+              domain: '(^|\\.)tiktok\\.com$',
+              type: 'deny' as const,
+              kind: 'regex' as const,
+              enabled: true,
+              comment: 'Kids only',
+              groups: [1],
+            },
+          ]),
+    ],
+    clients: [{id: 1, client: '192.168.1.44', comment: 'Tablet', groups: [1]}],
+  };
+}
+
+function initialDns(sim: Sim): Record<string, unknown> {
+  return {
+    upstreams: sim.port === 8082 ? ['8.8.8.8'] : ['1.1.1.1', '9.9.9.9'],
+    hosts: sim.port === 8082 ? [] : ['192.168.1.10 nas.lan'],
+    cnameRecords: [],
+    domainNeeded: true,
+    interface: sim.port === 8083 ? 'wlan0' : 'eth0',
+    port: 53,
+    listeningMode: 'LOCAL',
+    blocking: {mode: 'NULL'},
+    reply: {host: {force4: false, IPv4: ''}},
+  };
+}
+
+/** Wrap plain values the way GET /config?detailed=true returns them. */
+function detailed(node: unknown): unknown {
+  if (node && typeof node === 'object' && !Array.isArray(node)) {
+    return Object.fromEntries(
+      Object.entries(node).map(([k, v]) => [k, detailed(v)]),
+    );
+  }
+  return {
+    value: node,
+    flags: {restart_dnsmasq: false, session_reset: false, env_var: false},
+  };
+}
+
+function deepMerge(
+  target: Record<string, unknown>,
+  patch: Record<string, unknown>,
+): void {
+  for (const [k, v] of Object.entries(patch)) {
+    const cur = target[k];
+    if (
+      v &&
+      typeof v === 'object' &&
+      !Array.isArray(v) &&
+      cur &&
+      typeof cur === 'object'
+    ) {
+      deepMerge(cur as Record<string, unknown>, v as Record<string, unknown>);
+    } else {
+      target[k] = v;
+    }
+  }
+}
+
 function createSim(sim: Sim): void {
   const sessions = new Set<string>();
+  let gravity = initialGravity(sim);
+  const dns = initialDns(sim);
+  let restartingUntil = 0;
   const queries: MockQuery[] = [];
   let blocking: {enabled: boolean; until: number | null} = {
     enabled: true,
@@ -327,6 +480,16 @@ function createSim(sim: Sim): void {
       },
       took: 0.001,
     }),
+    'GET /config/dns': () => ({config: {dns: detailed(dns)}, took: 0.001}),
+    'PATCH /config': (_url, body) => {
+      const cfg = (body as {config?: {dns?: Record<string, unknown>}}).config;
+      if (cfg?.dns) deepMerge(dns, cfg.dns);
+      return {config: {}, took: 0.001};
+    },
+    'GET /groups': () => ({groups: gravity.groups, took: 0.001}),
+    'GET /lists': () => ({lists: gravity.lists, took: 0.001}),
+    'GET /domains': () => ({domains: gravity.domains, took: 0.001}),
+    'GET /clients': () => ({clients: gravity.clients, took: 0.001}),
     'GET /info/version': () => ({
       version: {
         core: {
@@ -350,12 +513,43 @@ function createSim(sim: Sim): void {
     }),
   };
 
+  /** POST /teleporter: copy the chosen tables from the uploaded backup, then "restart". */
+  async function importBackup(
+    req: http.IncomingMessage,
+    raw: Buffer,
+  ): Promise<void> {
+    const form = await new Request('http://mock/', {
+      method: 'POST',
+      headers: {'content-type': String(req.headers['content-type'])},
+      body: new Uint8Array(raw),
+    }).formData();
+    const file = form.get('file');
+    if (!(file instanceof Blob)) throw new Error('No file');
+    const backup = JSON.parse(await file.text()) as MockGravity;
+    const want =
+      (JSON.parse(String(form.get('import') ?? '{}')) as MockImport).gravity ??
+      {};
+    gravity = {
+      groups: want.group ? backup.groups : gravity.groups,
+      lists: want.adlist ? backup.lists : gravity.lists,
+      domains: want.domainlist ? backup.domains : gravity.domains,
+      clients: want.client ? backup.clients : gravity.clients,
+    };
+    restartingUntil = Date.now() + 2000;
+  }
+
   const server = http.createServer((req, res) => {
-    let body = '';
+    const chunks: Buffer[] = [];
     req.on('data', (c: Buffer) => {
-      body += c.toString();
+      chunks.push(c);
     });
     req.on('end', () => {
+      const raw = Buffer.concat(chunks);
+      const body = raw.toString();
+      if (Date.now() < restartingUntil) {
+        req.socket.destroy(); // DNS service restarting after an import
+        return;
+      }
       const url = new URL(req.url ?? '/', `http://localhost:${sim.port}`);
       const sid = String(req.headers['x-ftl-sid'] ?? '');
       function send(status: number, data: unknown): void {
@@ -411,6 +605,25 @@ function createSim(sim: Sim): void {
         return send(401, {
           error: {key: 'unauthorized', message: 'Unauthorized'},
         });
+      }
+      if (route === '/teleporter' && req.method === 'GET') {
+        res.writeHead(200, {'Content-Type': 'application/zip'});
+        return res.end(JSON.stringify(gravity));
+      }
+      if (route === '/teleporter' && req.method === 'POST') {
+        importBackup(req, raw).then(
+          () => send(200, {processed: ['gravity.db'], took: 0.2}),
+          (err: Error) =>
+            send(400, {error: {key: 'bad_request', message: err.message}}),
+        );
+        return;
+      }
+      if (route === '/action/gravity' && req.method === 'POST') {
+        setTimeout(() => {
+          res.writeHead(200, {'Content-Type': 'text/plain'});
+          res.end('  [✓] Building tree\n  [✓] Done.\n');
+        }, 1500);
+        return;
       }
       const handler = routes[`${req.method} ${route}`];
       if (!handler) {

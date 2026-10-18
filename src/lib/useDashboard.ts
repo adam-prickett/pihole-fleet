@@ -6,6 +6,8 @@ import type {
   SettingsResponse,
   SettingsValues,
   Snapshot,
+  SyncResponse,
+  SyncSettings,
   TestResult,
 } from '../../server/types.js';
 
@@ -76,6 +78,16 @@ export const settingsApi = {
     postJson('/api/settings/password', {current, password}),
   removePassword: (current: string) =>
     postJson('/api/settings/password/remove', {current}),
+};
+
+/** Config sync (settings page). */
+export const syncApi = {
+  get: () => requestJson<SyncResponse>('GET', '/api/sync'),
+  update: (patch: Partial<SyncSettings>) =>
+    requestJson<SyncResponse>('PUT', '/api/sync', patch),
+  /** Compare replicas with the primary without changing anything. */
+  check: () => postJson<SyncResponse>('/api/sync/check'),
+  run: () => postJson<SyncResponse>('/api/sync/run'),
 };
 
 /** The session state, or why it couldn't be checked. */

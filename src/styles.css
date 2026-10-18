@@ -679,3 +679,20 @@ select.input { padding-right: 4px; }
 }
 .health-warning { border-left-color: var(--warning); }
 .banner-actions { margin-left: auto; display: inline-flex; gap: 6px; }
+
+/* Config sync */
+.field-wide { max-width: 360px; }
+.check-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
+.check-block { align-items: flex-start; }
+.check-block input { margin-top: 2px; }
+.check-block > span { display: flex; flex-direction: column; gap: 2px; color: var(--text-primary); }
+.inline-center { align-items: center; }
+.row-check { accent-color: var(--accent); margin: 0; }
+.sync-cell { display: flex; flex-direction: column; gap: 4px; white-space: normal; min-width: 220px; }
+.sync-cell .error-text { font-size: 11px; }
+.diff-list { margin: 0; padding-left: 14px; font-size: 11px; color: var(--text-secondary); }
+.diff-list .mono { font-size: 10px; }
+.tag-role { margin-left: 6px; }
+@media (max-width: 760px) {
+  .check-grid { grid-template-columns: 1fr; }
+}

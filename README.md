@@ -15,6 +15,7 @@ Server-Sent Events.
 - **Query log:** streams from every instance, with search, an outcome filter and pause
 - **Blocking control:** for one instance, the current selection or the whole fleet (30s / 5m / 30m / 1h / until re-enabled)
 - **Filtering:** click a row in the instances table to scope the whole dashboard to it; Shift-click to add more
+- **Config sync:** pick a primary Pi-hole and the others mirror its adlists, domains, clients, local DNS records and DNS settings
 - **Settings in the browser:** add and test Pi-holes, set an optional password, allowed hosts (including subnets), proxy and polling, with no config files
 - **Themes:** dark by default, light and auto available; fonts are bundled locally (IBM Plex), so it works offline
 
@@ -48,18 +49,19 @@ Everything is managed from the dashboard: click the **gear icon**.
 
 - **Instances:** add, edit and remove Pi-holes. **Test connection** checks the URL
   and password before you save, and changes take effect immediately.
+- **Sync:** choose a primary Pi-hole for the others to mirror (see [Config sync](#config-sync)).
 - **Dashboard:** allowed hosts, reverse proxy, session timeout, live connection limit,
   poll interval and read-only mode. Changes take effect without a restart.
+- **Password:** set, change or remove the (optional) dashboard password. Changing it signs other browsers out.
 
 **Allowed hosts** is optional. It controls which addresses in the browser's address bar the
 dashboard answers to, which blocks DNS-rebinding attacks. Left empty, any IP address works,
 plus the server's own hostname. To open the dashboard by a DNS name such as `dashboard.lan`,
 add that name. To restrict it, list names, IPs and subnets, e.g. `dashboard.lan, 10.1.68.0/24`.
 Saving a list that would exclude the address you're using is refused, so you can't lock yourself out.
-- **Password:** set, change or remove the (optional) dashboard password. Changing it signs other browsers out.
 
-Settings and the password hash are saved in `settings.json`, and instances in
-`instances.json`, both in the data directory (`DATA_DIR`, default `./data`; `/data` in Docker).
+Settings and the password hash are saved in `settings.json`, instances in
+`instances.json` and sync settings in `sync.json`, all in the data directory (`DATA_DIR`, default `./data`; `/data` in Docker).
 They are written readable by their owner only. `instances.json` contains the Pi-hole passwords.
 
 Prefer HTTPS for your Pi-holes. Over HTTP, the Pi-hole password and session cross your
@@ -69,6 +71,41 @@ verification" accepts self-signed certificates but allows interception, so prefe
 
 **Read-only mode** hides the blocking controls and locks the instance list, but the
 settings stay editable so it can be turned off again (unless it's set with `READ_ONLY`).
+
+### Config sync
+
+Under **Settings → Sync**, choose one Pi-hole as the **primary**. The others become
+**replicas** and mirror whichever of these you tick:
+
+| Item | What's copied |
+|---|---|
+| Adlists | Blocklists and allowlists (gravity is updated afterwards so the lists are downloaded) |
+| Domains | Allowed and denied domains, exact and regex |
+| Clients | Client definitions and their group assignments |
+| Local DNS records | Local DNS (`dns.hosts`) and CNAME records |
+| DNS settings | The rest of the DNS settings: upstreams, conditional forwarding, blocking mode and so on |
+
+- **Groups** are copied along with adlists, domains or clients, so group assignments line up.
+- **Never copied:** the network interface, DNS port, listening mode and the Pi-hole's own
+  reply addresses (`dns.reply.*`), DHCP, and the web interface settings, including passwords.
+  Settings fixed by an environment variable on a replica (`FTLCONF_…`) are left alone and listed.
+- **Check now** compares every replica with the primary and lists the differences
+  without changing anything. **Sync now** copies the primary's configuration over.
+- **Automatic sync** runs every 5 to 1440 minutes. Each run compares first and only writes to
+  replicas that differ, so an in-sync fleet isn't touched.
+- Lists are copied with Pi-hole's own backup format (Teleporter), and DNS settings
+  through its config API. A replica restarts its DNS service for a few seconds after
+  lists are imported, and replicas are synced one at a time so they never all restart together.
+- Untick a replica to leave it out. The dashboard's instances table marks the primary
+  and shows each replica's sync state.
+
+Replicas, and the primary, need a password that is allowed to change settings: the
+admin password, or an app password with `webserver.api.app_sudo` enabled
+(*Settings → All settings → Webserver and API* on that Pi-hole).
+
+Make changes on the primary's own admin page; anything changed directly on a replica
+is overwritten at the next sync. Sync keeps running in read-only mode, but the sync
+settings can't be changed and **Sync now** is unavailable.
 
 ### Fixing settings with environment variables (optional)
 
@@ -144,7 +181,7 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
   so they survive redeploys and image updates. Removing the volume (`docker compose down -v`, or
   deleting it in Portainer) resets everything.
 - `DASHBOARD_PORT` changes the host port (default `3030`). `DASHBOARD_IMAGE` pins a release,
-  e.g. `ghcr.io/adam-prickett/pihole-fleet:0.2.1`.
+  e.g. `ghcr.io/adam-prickett/pihole-fleet:0.3.0`.
 - To fix any setting with an environment variable, add it to the stack's **Environment variables** in
   Portainer (or a `.env` file), e.g. `ALLOWED_HOSTS=dashboard.lan,10.1.68.0/24`. The compose file
   passes every setting listed under `environment:` through to the container; empty ones are ignored.

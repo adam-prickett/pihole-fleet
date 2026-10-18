@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-10-18
+
+### Added
+
+- **Config sync** (Settings → Sync): choose a primary Pi-hole and the others
+  mirror its configuration.
+  - Choose what to mirror: adlists, domains, clients, local DNS and CNAME
+    records, and other DNS settings. Groups come along with the lists.
+  - Machine-specific settings (interface, port, listening mode, reply
+    addresses), DHCP and web interface settings are never copied.
+  - **Check now** lists each replica's differences without changing anything.
+    **Sync now** copies the primary's configuration over.
+  - Optional automatic sync every 5–1440 minutes, which only writes to
+    replicas that differ.
+  - Gravity is updated on a replica after its adlists change (optional).
+  - The instances table marks the primary and each replica's sync state, and
+    syncs and differences appear in the event log and audit log.
+
 ## [0.2.1] - 2026-10-18
 
 ### Fixed
@@ -114,6 +132,7 @@ First release.
   publishes amd64/arm64/armv7 images to GHCR with an SBOM and provenance
   attestation, plus Dependabot updates.
 
+[0.3.0]: https://github.com/adam-prickett/pihole-fleet/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/adam-prickett/pihole-fleet/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/adam-prickett/pihole-fleet/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/adam-prickett/pihole-fleet/releases/tag/v0.1.0

@@ -18,6 +18,7 @@ import {DashboardTab} from './DashboardSettings.js';
 import {IconEdit, IconLock, IconPlus, IconTrash, IconX} from './Icons.js';
 import {PasswordTab} from './PasswordSettings.js';
 import {StatusLabel, type Status} from './Panel.js';
+import {SyncTab} from './SyncSettings.js';
 
 const STATUS: Record<InstanceStatus, {cls: Status; label: string}> = {
   online: {cls: 'good', label: 'Online'},
@@ -47,15 +48,16 @@ const emptyForm: InstanceFormState = {
 /** Which part of the settings to open on. */
 export type SettingsMode = 'list' | 'add' | 'password';
 
-type Tab = 'instances' | 'dashboard' | 'password';
+type Tab = 'instances' | 'sync' | 'dashboard' | 'password';
 
 const TABS: Array<{id: Tab; label: string}> = [
   {id: 'instances', label: 'Instances'},
+  {id: 'sync', label: 'Sync'},
   {id: 'dashboard', label: 'Dashboard'},
   {id: 'password', label: 'Password'},
 ];
 
-/** Settings modal: Pi-hole instances, dashboard settings and the dashboard password. */
+/** Settings modal: Pi-hole instances, config sync, dashboard settings and the password. */
 interface SettingsProps {
   onClose: () => void;
   initialMode?: SettingsMode;
@@ -137,6 +139,13 @@ export function Settings({
               liveStates={liveStates}
               colorOf={colorOf}
               onEditingChange={onEditingChange}
+            />
+          )}
+          {tab === 'sync' && (
+            <SyncTab
+              liveStates={liveStates}
+              colorOf={colorOf}
+              onDirtyChange={onEditingChange}
             />
           )}
           {tab === 'dashboard' && (
