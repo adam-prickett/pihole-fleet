@@ -1,15 +1,19 @@
 {
   "name": "pihole-dashboard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Live, unified dashboard for multiple Pi-hole instances",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k -n server,web -c blue,magenta \"node --watch server/index.js\" \"vite\"",
-    "demo": "concurrently -k -n mock,server,web -c yellow,blue,magenta \"node server/mock-pihole.js\" \"node --watch server/index.js --config config.demo.json\" \"vite\"",
-    "build": "vite build",
-    "start": "node server/index.js",
-    "preview:demo": "concurrently -k -n mock,server \"node server/mock-pihole.js\" \"node server/index.js --config config.demo.json\""
+    "dev": "concurrently -k -n server,web -c blue,magenta \"tsx watch server/index.ts\" \"vite\"",
+    "demo": "concurrently -k -n mock,server,web -c yellow,blue,magenta \"tsx server/mock-pihole.ts\" \"tsx watch server/index.ts --config config.demo.json\" \"vite\"",
+    "build": "vite build && tsc -p tsconfig.server.json",
+    "start": "node build/index.js",
+    "preview:demo": "concurrently -k -n mock,server \"node build/mock-pihole.js\" \"node build/index.js --config config.demo.json\"",
+    "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.app.json && tsc -p tsconfig.node.json",
+    "lint": "gts lint",
+    "fix": "gts fix",
+    "check": "npm run typecheck && npm run lint"
   },
   "engines": {
     "node": ">=20"
@@ -22,11 +26,19 @@
   "devDependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@types/express": "^4.17.25",
+    "@types/node": "^22.20.5",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^5.2.0",
     "concurrently": "^9.1.0",
+    "globals": "^14.0.0",
+    "gts": "^7.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "recharts": "^2.15.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
     "vite": "^7.3.7"
   }
 }

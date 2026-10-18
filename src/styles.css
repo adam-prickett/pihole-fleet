@@ -578,3 +578,104 @@ button, input { font: inherit; color: inherit; }
   .stack.span-4 { flex-direction: column; }
   .search input { width: 110px; }
 }
+
+/* =========================================================
+   Settings modal
+   ========================================================= */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: start center;
+  padding: 64px 16px 16px;
+  background: rgba(0, 0, 0, 0.5);
+  overflow-y: auto;
+}
+.modal { width: 100%; max-width: 860px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35); }
+.modal-body { padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.modal-body > .table-scroll { margin: 0 -12px; }
+.settings-table td.mono { font-size: 11px; }
+.row-actions { display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
+.row-actions .error-text { font-size: 11px; white-space: normal; max-width: 220px; }
+.btn-danger { color: var(--critical-text); border-color: color-mix(in srgb, var(--critical) 55%, transparent); }
+.btn-danger:hover:not(:disabled) { color: var(--critical-text); border-color: var(--critical); }
+.btn-sm { height: 26px; }
+.notice {
+  font-size: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--warning);
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--text-secondary);
+}
+.notice-critical { border-left-color: var(--critical); }
+.hint { margin: 0; font-size: 11px; color: var(--text-muted); }
+
+.instance-form { display: flex; flex-direction: column; gap: 14px; max-width: 520px; }
+.field-narrow { max-width: 160px; }
+.input {
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--page);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  min-width: 0;
+}
+.input.mono { font-family: var(--mono); font-size: 12px; }
+.input:focus { outline: 0; border-color: var(--accent); }
+.input:disabled { opacity: 0.5; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); cursor: pointer; }
+.check input { accent-color: var(--accent); margin: 0; }
+.test-result { font-size: 12px; }
+.form-actions { display: flex; align-items: center; gap: 6px; padding-top: 4px; }
+.form-actions .spacer { flex: 1; }
+
+/* Empty dashboard */
+.welcome-wrap { display: grid; place-items: center; gap: 16px; padding: 96px 16px; }
+.welcome { max-width: 480px; padding: 24px; gap: 12px; }
+.welcome p { margin: 0; font-size: 13px; line-height: 1.5; }
+.welcome .btn-primary { align-self: flex-start; padding: 0 14px; }
+.welcome-title { margin: 0; font-size: 15px; font-weight: 600; }
+
+@media (max-width: 760px) {
+  .modal-backdrop { padding: 16px; }
+  .form-actions { flex-wrap: wrap; }
+}
+
+/* Settings tabs & forms */
+.modal .panel-head .segmented { margin-left: 8px; }
+.tab-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.section-title {
+  margin: 4px 0 0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.settings-form { display: flex; flex-direction: column; gap: 14px; max-width: 620px; }
+.settings-form .section-title:not(:first-child) { padding-top: 10px; border-top: 1px solid var(--grid); }
+.field-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.inline-fields { display: flex; gap: 6px; flex-wrap: wrap; }
+.inline-fields select { flex: 0 1 auto; }
+.inline-fields .narrow { width: 80px; }
+.inline-fields .grow { flex: 1; min-width: 180px; }
+select.input { padding-right: 4px; }
+.locked-note { display: inline-flex; align-items: center; gap: 4px; }
+.warning-text { color: var(--warning-text); }
+.link-btn { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; font-size: 12px; }
+.facts dt { color: var(--text-muted); }
+.facts dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .field-row { grid-template-columns: 1fr; }
+  .modal .panel-head .segmented { margin-left: 0; order: 3; width: 100%; }
+  .modal .panel-head .segmented button { flex: 1; }
+}
+.health-warning { border-left-color: var(--warning); }
+.banner-actions { margin-left: auto; display: inline-flex; gap: 6px; }

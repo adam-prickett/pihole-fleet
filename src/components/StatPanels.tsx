@@ -1,21 +1,49 @@
-import { Area, AreaChart, ResponsiveContainer, YAxis } from 'recharts';
-import { fmtCompact, fmtNumber } from '../lib/format.js';
+import type {ReactNode} from 'react';
+import {Area, AreaChart, ResponsiveContainer, YAxis} from 'recharts';
+import type {Aggregate, HistoryRow} from '../lib/aggregate.js';
+import {fmtCompact, fmtNumber} from '../lib/format.js';
 
-function Spark({ data, dataKey, color }) {
+function Spark({
+  data,
+  dataKey,
+  color,
+}: {
+  data: HistoryRow[];
+  dataKey: string;
+  color: string;
+}) {
   if (!data || data.length < 2) return <div className="stat-spark" />;
   return (
     <div className="stat-spark" aria-hidden="true">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
+        <AreaChart data={data} margin={{top: 2, right: 0, bottom: 0, left: 0}}>
           <YAxis hide domain={[0, 'dataMax']} />
-          <Area type="linear" dataKey={dataKey} stroke={color} strokeWidth={1.5} fill={color} fillOpacity={0.14} isAnimationActive={false} dot={false} />
+          <Area
+            type="linear"
+            dataKey={dataKey}
+            stroke={color}
+            strokeWidth={1.5}
+            fill={color}
+            fillOpacity={0.14}
+            isAnimationActive={false}
+            dot={false}
+          />
         </AreaChart>
       </ResponsiveContainer>
     </div>
   );
 }
 
-function Stat({ label, value, unit, detail, title, spark }) {
+interface StatProps {
+  label: string;
+  value: string;
+  unit?: string;
+  detail: ReactNode;
+  title?: string;
+  spark?: ReactNode;
+}
+
+function Stat({label, value, unit, detail, title, spark}: StatProps) {
   return (
     <div className="stat" title={title}>
       <div className="stat-label">{label}</div>
@@ -29,17 +57,24 @@ function Stat({ label, value, unit, detail, title, spark }) {
   );
 }
 
-const daysAgo = (unix) => (unix ? Math.floor((Date.now() / 1000 - unix) / 86400) : null);
+function daysAgo(unix: number | null): number | null {
+  return unix ? Math.floor((Date.now() / 1000 - unix) / 86400) : null;
+}
 
-export default function StatPanels({ agg }) {
-  const { totals, history } = agg;
+export function StatPanels({agg}: {agg: Aggregate}) {
+  const {totals, history} = agg;
   const gravityAge = daysAgo(totals.gravityOldest);
   return (
     <section className="stats" aria-label="Fleet metrics">
       <Stat
         label="Queries · 24h"
         value={fmtCompact(totals.total)}
-        detail={<><span className="mono">{totals.frequency.toFixed(1)}</span> q/s current</>}
+        detail={
+          <>
+            <span className="mono">{totals.frequency.toFixed(1)}</span> q/s
+            current
+          </>
+        }
         title={`${fmtNumber(totals.total)} queries`}
         spark={<Spark data={history} dataKey="total" color="var(--allowed)" />}
       />
@@ -48,7 +83,9 @@ export default function StatPanels({ agg }) {
         value={fmtCompact(totals.blocked)}
         detail="by gravity, regex & deny lists"
         title={`${fmtNumber(totals.blocked)} queries blocked`}
-        spark={<Spark data={history} dataKey="blocked" color="var(--blocked)" />}
+        spark={
+          <Spark data={history} dataKey="blocked" color="var(--blocked)" />
+        }
       />
       <Stat
         label="Block rate"
@@ -61,7 +98,12 @@ export default function StatPanels({ agg }) {
         label="Cache hit rate"
         value={totals.percentCached.toFixed(1)}
         unit="%"
-        detail={<><span className="mono">{fmtCompact(totals.forwarded)}</span> forwarded upstream</>}
+        detail={
+          <>
+            <span className="mono">{fmtCompact(totals.forwarded)}</span>{' '}
+            forwarded upstream
+          </>
+        }
       />
       <Stat
         label="Active clients"
@@ -71,7 +113,11 @@ export default function StatPanels({ agg }) {
       <Stat
         label="Blocklist domains"
         value={fmtCompact(totals.gravityDomains)}
-        detail={gravityAge == null ? 'largest list in scope' : `oldest gravity update ${gravityAge}d ago`}
+        detail={
+          gravityAge == null
+            ? 'largest list in scope'
+            : `oldest gravity update ${gravityAge}d ago`
+        }
         title={fmtNumber(totals.gravityDomains)}
       />
     </section>

@@ -15,12 +15,12 @@
     {
       "name": "Primary",
       "url": "http://192.168.1.2",
-      "password": "env:PIHOLE1_PASSWORD"
+      "password": "env:PIHOLE_1_PASSWORD"
     },
     {
       "name": "Secondary",
       "url": "https://pihole2.lan",
-      "password": "env:PIHOLE2_PASSWORD"
+      "password": "env:PIHOLE_2_PASSWORD"
     }
   ]
 }

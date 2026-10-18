@@ -1,28 +1,32 @@
-import { useState } from 'react';
-import { IconLock, IconLogo } from './Icons.jsx';
+import {useState, type FormEvent} from 'react';
+import {IconLock, IconLogo} from './Icons.js';
 
-export default function Login({ onLogin }) {
+export function Login({
+  onLogin,
+}: {
+  onLogin: (password: string) => Promise<void>;
+}) {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const submit = async (e) => {
+  async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
       await onLogin(password);
     } catch (err) {
-      setError(err.message);
+      setError((err as Error).message);
       setPassword('');
     } finally {
       setBusy(false);
     }
-  };
+  }
 
   return (
     <div className="login-wrap">
-      <form className="login panel" onSubmit={submit}>
+      <form className="login panel" onSubmit={e => void submit(e)}>
         <div className="login-brand">
           <IconLogo size={22} />
           <span className="product">Pi-hole Fleet</span>
@@ -37,12 +41,20 @@ export default function Login({ onLogin }) {
               autoFocus
               required
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={e => setPassword(e.target.value)}
             />
           </span>
         </label>
-        {error && <div className="error-text login-error" role="alert">{error}</div>}
-        <button className="btn btn-primary" type="submit" disabled={busy || !password}>
+        {error && (
+          <div className="error-text login-error" role="alert">
+            {error}
+          </div>
+        )}
+        <button
+          className="btn btn-primary"
+          type="submit"
+          disabled={busy || !password}
+        >
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
       </form>

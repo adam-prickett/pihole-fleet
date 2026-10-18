@@ -1,7 +1,6 @@
 {
   "port": 3030,
   "pollIntervalMs": 3000,
-  "readOnly": false,
   "instances": [
     { "name": "pihole-primary", "url": "http://127.0.0.1:8081", "password": "demo" },
     { "name": "pihole-secondary", "url": "http://127.0.0.1:8082", "password": "demo" },

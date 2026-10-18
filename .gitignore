@@ -1,6 +1,8 @@
-node_modules
-dist
-config.json
 .DS_Store
 .env
 .vscode
+build/
+config.json
+data/
+dist
+node_modules

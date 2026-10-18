@@ -1,37 +1,35 @@
 # Pi-hole Fleet Dashboard
 #
-#   1. cp config.example.json config.json   # list your Pi-hole instances
-#   2. cp .env.example .env                 # set DASHBOARD_PASSWORD, ALLOWED_HOSTS and Pi-hole passwords
-#   3. docker compose up -d --build
-#   4. open http://<one of ALLOWED_HOSTS>:3030
+# Works as-is as a Portainer stack (Stacks -> Add stack -> Web editor) or with `docker compose up -d`;
+# no other files or variables are needed.
+#
+# Open http://<this host>:3030 and add your Pi-holes from the settings (gear icon). A dashboard
+# password and allowed hosts are optional and can also be set there. Everything is saved in
+# the `pihole-fleet-data` volume.
 
 services:
   pihole-dashboard:
-    build: .
-    # Set DASHBOARD_IMAGE=ghcr.io/adam-prickett/pihole-fleet:latest in .env to use the published image
-    image: ${DASHBOARD_IMAGE:-pihole-dashboard:latest}
+    image: ${DASHBOARD_IMAGE:-ghcr.io/adam-prickett/pihole-fleet:latest}
     container_name: pihole-dashboard
     restart: unless-stopped
     init: true
     ports:
       - "${DASHBOARD_PORT:-3030}:3030"
-    env_file:
-      - path: .env
-        required: false
-    environment:
-      CONFIG: /config/config.json
-      # Required: password for the dashboard login (12+ characters recommended).
-      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD:?Set DASHBOARD_PASSWORD in .env}
-      # Required: hostnames/IPs you browse to, comma-separated (DNS-rebinding protection).
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS:?Set ALLOWED_HOSTS in .env, e.g. 192.168.1.10,dashboard.lan}
-      # Set when behind a reverse proxy so client IPs and HTTPS are detected, e.g. "1" or "172.16.0.0/12".
-      TRUST_PROXY: ${TRUST_PROXY:-false}
-      # Alternatively skip config.json and define instances inline:
-      # PIHOLE_INSTANCES: '[{"name":"Primary","url":"http://192.168.1.2","password":"env:PIHOLE1_PASSWORD"}]'
+    # Optional overrides. Any setting given here is fixed: the settings page shows it as locked.
+    # environment:
+    #   DASHBOARD_PASSWORD: change-me-to-something-long
+    #   ALLOWED_HOSTS: dashboard.lan,10.1.68.0/24
+    #   TRUST_PROXY: "1"
+    #   POLL_INTERVAL_MS: "5000"
+    #   READ_ONLY: "false"
+    #   SESSION_HOURS: "12"
+    #   MAX_STREAMS: "50"
+    #   RESET_PASSWORD: "true"   # forgot the password? set, restart (it's cleared), then remove
     volumes:
-      - ./config.json:/config/config.json:ro
-    # Lets config.json reach a Pi-hole on this same Docker host via
-    # http://host.docker.internal (Linux needs this mapping; Docker Desktop has it built in).
+      # Settings, the dashboard password hash and Pi-hole instances (with their passwords).
+      - pihole-fleet-data:/data
+    # Lets the dashboard reach a Pi-hole on this same Docker host as http://host.docker.internal
+    # (Linux needs this mapping; Docker Desktop has it built in).
     extra_hosts:
       - "host.docker.internal:host-gateway"
     read_only: true
@@ -50,3 +48,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  pihole-fleet-data:
