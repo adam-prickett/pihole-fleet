@@ -1,0 +1,32 @@
+{
+  "name": "pihole-dashboard",
+  "version": "0.1.0",
+  "description": "Live, unified dashboard for multiple Pi-hole instances",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n server,web -c blue,magenta \"node --watch server/index.js\" \"vite\"",
+    "demo": "concurrently -k -n mock,server,web -c yellow,blue,magenta \"node server/mock-pihole.js\" \"node --watch server/index.js --config config.demo.json\" \"vite\"",
+    "build": "vite build",
+    "start": "node server/index.js",
+    "preview:demo": "concurrently -k -n mock,server \"node server/mock-pihole.js\" \"node server/index.js --config config.demo.json\""
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "helmet": "^8.3.0",
+    "undici": "^6.21.0"
+  },
+  "devDependencies": {
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "concurrently": "^9.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.15.0",
+    "vite": "^7.3.7"
+  }
+}

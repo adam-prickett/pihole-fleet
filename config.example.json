@@ -1,0 +1,26 @@
+{
+  "port": 3030,
+  "pollIntervalMs": 5000,
+  "readOnly": false,
+  "auth": {
+    "password": "env:DASHBOARD_PASSWORD",
+    "sessionHours": 12
+  },
+  "allowedHosts": [
+    "192.168.1.10",
+    "dashboard.lan"
+  ],
+  "trustProxy": false,
+  "instances": [
+    {
+      "name": "Primary",
+      "url": "http://192.168.1.2",
+      "password": "env:PIHOLE1_PASSWORD"
+    },
+    {
+      "name": "Secondary",
+      "url": "https://pihole2.lan",
+      "password": "env:PIHOLE2_PASSWORD"
+    }
+  ]
+}
